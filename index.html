@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Marry Me 💍</title>
+  <style>
+    :root {
+      --bg: #fff5f7;
+      --card: #ffffff;
+      --accent: #ff4d6d;
+      --accent-2: #ff8fa3;
+      --text: #222222;
+      --shadow: 0 10px 30px rgba(0,0,0,.08);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: ui-rounded, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 10% 10%, #ffe3ec 0%, var(--bg) 50%),
+                  radial-gradient(1200px 800px at 90% 90%, #e8f0ff 0%, var(--bg) 50%);
+      color: var(--text);
+      overflow: hidden;
+    }
+    .stage {
+      position: relative;
+      height: 100%;
+      width: 100%;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+    .card {
+      position: relative;
+      width: min(680px, 92vw);
+      background: var(--card);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: clamp(24px, 4vw, 40px);
+      text-align: center;
+      overflow: hidden;
+    }
+    h1 {
+      font-size: clamp(32px, 6vw, 56px);
+      line-height: 1.1;
+      margin: 0 0 10px;
+    }
+    .sub {
+      font-size: clamp(16px, 3.2vw, 20px);
+      opacity: .8;
+      margin-bottom: 26px;
+    }
+    .buttons {
+      position: relative; /* keeps absolute children positioned inside */
+      display: inline-block;
+      min-height: 80px; /* room for the runaway button */
+      width: 100%;
+    }
+    button {
+      border: 0;
+      padding: 14px 26px;
+      font-size: clamp(16px, 3.6vw, 20px);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: transform .12s ease, box-shadow .12s ease, background .2s ease;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 8px 20px rgba(0,0,0,.08);
+    }
+    #yes {
+      background: var(--accent);
+      color: #fff;
+      margin-right: 14px;
+    }
+    #yes:hover { transform: translateY(-2px) scale(1.03); }
+
+    #no {
+      background: #f0f3f7;
+      color: #333;
+      position: absolute; /* allows us to move it around */
+      left: 50%;
+      transform: translateX(8px); /* initial tiny offset from Yes */
+      touch-action: none; /* ensures touch events hit the button */
+    }
+
+    .rings {
+      display: inline-flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+      font-size: clamp(24px, 5vw, 34px);
+    }
+
+    /* Celebration overlay */
+    .celebrate {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, .9);
+      z-index: 50;
+    }
+    .celebrate.on { display: flex; }
+    .celebrate .msg {
+      text-align: center;
+      max-width: 90vw;
+      animation: pop .5s ease;
+    }
+    .celebrate h2 { font-size: clamp(32px, 7vw, 60px); margin: 0 0 8px; }
+    .celebrate p { font-size: clamp(16px, 3.5vw, 22px); margin: 0 0 16px; }
+
+    @keyframes pop { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    /* Floating hearts */
+    .heart {
+      position: fixed;
+      bottom: -40px;
+      font-size: 22px;
+      animation: floatUp linear forwards;
+      pointer-events: none;
+      z-index: 60;
+    }
+    @keyframes floatUp {
+      to {
+        transform: translateY(-110vh) translateX(var(--drift, 0px)) rotate(20deg);
+        opacity: 0;
+      }
+    }
+    .footer {
+      margin-top: 18px;
+      font-size: 12px;
+      opacity: .6;
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="card" id="card">
+      <div class="rings">💍💖</div>
+      <h1>Will you marry me?</h1>
+      <div class="sub">(Please press <strong>Yes</strong> 😇 — the <em>No</em> button is a little shy!)</div>
+
+      <div class="buttons" id="buttons">
+        <button id="yes" aria-label="Yes">Yes 💗</button>
+        <button id="no" aria-label="No">No 🙈</button>
+      </div>
+
+      <div class="footer">Made with love</div>
+    </div>
+  </div>
+
+  <div class="celebrate" id="celebrate" role="dialog" aria-live="polite" aria-modal="true">
+    <div class="msg">
+      <h2>Yaaay! I knew di chellam😁 you'd say YES! 💍🥰</h2>
+      <p>Forever starts now. I love you di pondati❤️</p>
+      <button id="hug">Big kiss 🤗</button>
+    </div>
+  </div>
+
+  <script>
+    const noBtn = document.getElementById('no');
+    const yesBtn = document.getElementById('yes');
+    const btnWrap = document.getElementById('buttons');
+    const celebrate = document.getElementById('celebrate');
+    const hug = document.getElementById('hug');
+
+    function randomBetween(min, max) { return Math.random() * (max - min) + min; }
+
+    function moveNo() {
+      const wrapRect = btnWrap.getBoundingClientRect();
+      const btnRect = noBtn.getBoundingClientRect();
+
+      // Calculate safe area so the button stays fully in view within the card
+      const padding = 8;
+      const maxX = wrapRect.width - btnRect.width - padding;
+      const maxY = Math.max(0, 140); // give it some runway vertically
+
+      // Random new spot
+      const x = randomBetween(padding, Math.max(padding, maxX));
+      const y = randomBetween(0, maxY);
+
+      noBtn.style.left = x + 'px';
+      noBtn.style.top = y + 'px';
+      noBtn.style.transform = 'none';
+    }
+
+    // Make the No button run away on hover or touch
+    ['mouseenter', 'mouseover', 'focus'].forEach(evt => {
+      noBtn.addEventListener(evt, moveNo);
+    });
+
+    // For mobile: whenever they try to touch it, jump!
+    ['touchstart', 'pointerdown'].forEach(evt => {
+      noBtn.addEventListener(evt, (e) => {
+        e.preventDefault();
+        moveNo();
+      }, { passive: false });
+    });
+
+    // Also nudge away when the pointer gets close (desktop)
+    document.addEventListener('mousemove', (e) => {
+      const r = noBtn.getBoundingClientRect();
+      const proximity = 80; // px radius where it gets shy
+      const dx = Math.max(Math.max(r.left - e.clientX, 0), Math.max(e.clientX - r.right, 0));
+      const dy = Math.max(Math.max(r.top - e.clientY, 0), Math.max(e.clientY - r.bottom, 0));
+      const dist = Math.hypot(dx, dy);
+      if (dist < proximity) moveNo();
+    });
+
+    // Say YES: show celebration + hearts
+    yesBtn.addEventListener('click', () => {
+      celebrate.classList.add('on');
+      // Hide the naughty No
+      noBtn.style.display = 'none';
+      // Launch floating hearts for a few seconds
+      const burst = setInterval(makeHeart, 120);
+      setTimeout(() => clearInterval(burst), 5000);
+    });
+
+    hug.addEventListener('click', () => {
+      celebrate.classList.remove('on');
+    });
+
+    function makeHeart() {
+      const h = document.createElement('div');
+      h.className = 'heart';
+      h.textContent = ['❤️','💖','💗','💘','💕','💞'][Math.floor(Math.random()*6)];
+      h.style.left = randomBetween(0, window.innerWidth - 20) + 'px';
+      h.style.animationDuration = randomBetween(3.5, 6.5) + 's';
+      h.style.setProperty('--drift', (Math.random() * 120 - 60) + 'px');
+      document.body.appendChild(h);
+      setTimeout(() => h.remove(), 7000);
+    }
+
+    // Place No in a sensible starting spot once layout is ready
+    window.addEventListener('load', () => {
+      moveNo();
+    });
+  </script>
+</body>
+</html>
